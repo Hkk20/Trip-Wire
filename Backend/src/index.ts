@@ -30,7 +30,7 @@ app.use(session({
 
 }));
 app.get('/health',(req: Request, res: Response)=>{
-    res.json(200).json({
+    res.status(200).json({
         sucess: true,
         status:' online',
         message:'serveris running cool'
