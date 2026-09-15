@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Tripwire – Merged Single Code</title>
+  <style>
+    :root{
+      --bg:#ffffff;
+      --surface:#f2f2f7;
+      --surface-2:#ffffff;
+      --label:#000000;
+      --secondary:rgba(60,60,67,.6);
+      --tertiary:rgba(60,60,67,.3);
+      --separator:rgba(60,60,67,.12);
+      --blue:#007aff;
+      --green:#34c759;
+      --red:#ff3b30;
+      --orange:#ff9500;
+      --purple:#af52de;
+      --shadow: 0 20px 60px rgba(0,0,0,.06);
+    }
+    body.dark{
+      --bg:#000000;
+      --surface:#1c1c1e;
+      --surface-2:#1c1c1e;
+      --label:#ffffff;
+      --secondary:rgba(235,235,245,.6);
+      --tertiary:rgba(235,235,245,.3);
+      --separator:rgba(84,84,88,.55);
+      --blue:#0a84ff;
+      --green:#30d158;
+      --red:#ff453a;
+      --orange:#ff9f0a;
+      --purple:#bf5af2;
+      --shadow: 0 18px 50px rgba(0,0,0,.5);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      background:
+        radial-gradient(1200px 600px at 20% -10%, rgba(0,122,255,.05), transparent 60%),
+        radial-gradient(900px 500px at 100% 0%, rgba(175,82,222,.04), transparent 55%),
+        #f4f5f7;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
+      color: var(--label);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      display: grid;
+      place-items: center;
+      padding: 28px 18px;
+    }
+    body.dark { background:
+      radial-gradient(1200px 600px at 20% -10%, rgba(10,132,255,.08), transparent 60%),
+      radial-gradient(900px 500px at 100% 0%, rgba(191,90,242,.06), transparent 55%),
+      #0b0b0c;
+    }
+
+    .workspace {
+      width: min(1280px, 100%);
+      display: grid;
+      gap: 18px;
+      justify-items: center;
+    }
+
+    .topbar {
+      width: min(980px, 100%);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      border: 1px solid var(--separator);
+      border-radius: 18px;
+      background: color-mix(in srgb, var(--surface-2) 92%, transparent);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(16px);
+    }
+    .titleblock h1 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+      font-weight: 700;
+    }
+    .titleblock p {
+      margin: 4px 0 0;
+      color: var(--secondary);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .controls {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: flex-end;
+    }
+    .chip {
+      appearance: none;
+      border: 1px solid var(--separator);
+      background: var(--surface-2);
+      color: var(--label);
+      border-radius: 999px;
+      padding: 10px 14px;
+      font-size: 13px;
+      line-height: 1;
+      cursor: pointer;
+      transition: transform .12s ease, opacity .12s ease, background .12s ease;
+      user-select: none;
+    }
+    .chip:hover { opacity: .94; }
+    .chip:active { transform: scale(.98); }
+    .chip.active {
+      border-color: color-mix(in srgb, var(--blue) 40%, var(--separator));
+      background: color-mix(in srgb, var(--blue) 10%, var(--surface-2));
+    }
+
+    .phone {
+      width: 390px;
+      height: 844px;
+      border-radius: 42px;
+      overflow: hidden;
+      background: var(--bg);
+      border: 1px solid color-mix(in srgb, var(--separator) 78%, transparent);
+      box-shadow: 0 35px 90px rgba(0,0,0,.18);
+      position: relative;
+    }
+
+    .phone::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      border-radius: 42px;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.02);
+    }
+
+    .screen {
+      display: none;
+      width: 100%;
+      height: 100%;
+      color: var(--label);
+      background: var(--bg);
+      overflow: hidden;
+    }
+    .screen.active { display: flex; flex-direction: column; }
+
+    .nav {
+      height: 98px;
+      padding: 12px 16px 0;
+      display: grid;
+      grid-template-columns: 44px 1fr 44px;
+      align-items: end;
+      flex: 0 0 auto;
+      background: var(--bg);
+    }
+    .nav.inline { height: 54px; padding-top: 12px; }
+    .nav.large { height: 98px; }
+    .nav .left, .nav .right {
+      width: 44px; height: 44px;
+      display: grid; place-items: center;
+      color: var(--blue);
+      border-radius: 22px;
+      font-size: 22px;
+      user-select: none;
+    }
+    .nav .center {
+      text-align: center;
+      padding-bottom: 6px;
+    }
+    .title-inline {
+      font-size: 17px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+    .title-large {
+      font-size: 34px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: .98;
+      text-align: left;
+      margin: 0;
+    }
+
+    .content {
+      flex: 1 1 auto;
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 0 0 18px;
+      background: var(--bg);
+    }
+    .content::-webkit-scrollbar { display: none; }
+
+    .section {
+      margin: 0 0 14px;
+      padding: 0 16px;
+    }
+
+    .card {
+      background: var(--surface);
+      border-radius: 18px;
+      padding: 16px;
+      border: 1px solid color-mix(in srgb, var(--separator) 88%, transparent);
+    }
+    .card.compact { padding: 14px; border-radius: 16px; }
+    .card.tight { padding: 12px; border-radius: 14px; }
+    .subtle {
+      color: var(--secondary);
+      font-size: 15px;
+      line-height: 1.35;
+    }
+    .small { font-size: 13px; }
+    .body { font-size: 15px; line-height: 1.42; }
+    .body-17 { font-size: 17px; line-height: 1.4; }
+    .semibold { font-weight: 600; }
+    .strong { font-weight: 700; }
+
+    .field {
+      height: 48px;
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--surface) 100%, transparent);
+      border: 1px solid color-mix(in srgb, var(--separator) 95%, transparent);
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      color: var(--secondary);
+      font-size: 17px;
+      margin-top: 10px;
+    }
+
+    .button {
+      width: 100%;
+      border: 0;
+      border-radius: 12px;
+      height: 50px;
+      font-size: 17px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      cursor: pointer;
+      transition: transform .12s ease, opacity .12s ease;
+      user-select: none;
+    }
+    .button:active { transform: scale(.985); }
+    .button.primary { background: var(--blue); color: #fff; }
+    .button.destructive { background: var(--red); color: #fff; }
+    .button.secondary { background: var(--surface); color: var(--label); border: 1px solid var(--separator); }
+    .button.ghost { background: transparent; color: var(--blue); }
+
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .row.between { justify-content: space-between; }
+    .stack { display: grid; gap: 6px; }
+    .spacer { height: 12px; }
+
+    .list {
+      display: grid;
+      gap: 10px;
+      margin-top: 8px;
+    }
+    .list-item {
+      background: var(--surface);
+      border: 1px solid color-mix(in srgb, var(--separator) 90%, transparent);
+      border-radius: 18px;
+      padding: 14px;
+      display: grid;
+      gap: 8px;
+    }
+    .list-item .top {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .list-item .name { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+    .list-item .owner { font-size: 15px; color: var(--secondary); }
+    .list-item .desc { font-size: 15px; color: var(--secondary); line-height: 1.35; }
+    .meta {
+      display: flex;
+      gap: 14px;
+      color: var(--secondary);
+      font-size: 13px;
+      flex-wrap: wrap;
+    }
+    .meta span { display: inline-flex; align-items: center; gap: 4px; }
+
+    .divider { height: 1px; background: var(--separator); margin: 12px 0; opacity: .9; }
+
+    .segmented {
+      display: inline-flex;
+      padding: 4px;
+      background: var(--surface);
+      border: 1px solid var(--separator);
+      border-radius: 14px;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+    .seg-btn {
+      border: 0;
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      background: transparent;
+      color: var(--secondary);
+      cursor: pointer;
+    }
+    .seg-btn.active { background: var(--bg); color: var(--label); box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+
+    .centered {
+      min-height: calc(100% - 98px);
+      display: grid;
+      place-items: center;
+      padding: 26px 18px 20px;
+      text-align: center;
+    }
+    .centered.inline { min-height: calc(100% - 54px); }
+    .icon-lg {
+      width: 64px; height: 64px;
+      border-radius: 999px;
+      display: grid; place-items: center;
+      margin: 0 auto 14px;
+      background: color-mix(in srgb, var(--surface) 100%, transparent);
+      border: 1px solid var(--separator);
+      font-size: 30px;
+    }
+    .icon-muted {
+      color: var(--secondary);
+    }
+    .icon-blue { color: var(--blue); }
+    .icon-green { color: var(--green); }
+    .icon-red { color: var(--red); }
+    .headline {
+      font-size: 28px;
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+      font-weight: 700;
+      margin: 0;
+    }
+    .subheadline {
+      margin: 8px 0 0;
+      font-size: 15px;
+      color: var(--secondary);
+      line-height: 1.4;
+    }
+    .footnote {
+      font-size: 13px;
+      color: var(--secondary);
+      text-align: center;
+      line-height: 1.35;
+    }
+
+    .progress-wrap {
+      display: grid;
+      gap: 14px;
+      align-items: center;
+      justify-items: center;
+      width: 100%;
+      padding: 12px 0 0;
+    }
+    .percent {
+      font-size: 40px;
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: -0.05em;
+    }
+    .bar {
+      width: 100%;
+      height: 5px;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--surface) 100%, transparent);
+      border: 1px solid var(--separator);
+      overflow: hidden;
+    }
+    .bar > div {
+      width: 0%;
+      height: 100%;
+      background: var(--blue);
+      border-radius: inherit;
+      transition: width .18s linear;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--surface) 95%, transparent);
+      border: 1px solid var(--separator);
+      color: var(--secondary);
+      font-size: 13px;
+    }
+
+    .screen-footer {
+      padding: 10px 16px 16px;
+      color: var(--secondary);
+      font-size: 13px;
+      text-align: center;
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,.28);
+      display: none;
+      place-items: center;
+      z-index: 20;
+      padding: 18px;
+    }
+    .overlay.show { display: grid; }
+    .modal {
+      width: 100%;
+      max-width: 320px;
+      border-radius: 18px;
+      background: color-mix(in srgb, var(--surface-2) 94%, transparent);
+      border: 1px solid var(--separator);
+      box-shadow: 0 22px 70px rgba(0,0,0,.25);
+      overflow: hidden;
+    }
+    .modal .body {
+      padding: 18px 16px 16px;
+      text-align: center;
+    }
+    .modal .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      border-top: 1px solid var(--separator);
+    }
+    .modal .actions button {
+      height: 48px;
+      border: 0;
+      background: transparent;
+      color: var(--blue);
+      font-weight: 600;
+      font-size: 17px;
+      cursor: pointer;
+    }
+    .modal .actions button + button {
+      border-left: 1px solid var(--separator);
+    }
+    .modal .actions .danger { color: var(--red); }
+
+    .statusbar {
+      height: 20px;
+      padding: 6px 16px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 1;
+      color: var(--label);
+      user-select: none;
+    }
+    .pill {
+      width: 126px;
+      height: 30px;
+      border-radius: 999px;
+      background: #000;
+      margin: 0 auto;
+    }
+
+    .note {
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: color-mix(in srgb, var(--surface) 100%, transparent);
+      border: 1px solid var(--separator);
+      color: var(--secondary);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    @media (max-width: 980px) {
+      body { align-items: start; }
+      .workspace { justify-items: stretch; }
+      .phone { margin: 0 auto; }
+      .topbar { margin: 0 auto; }
+    }
+  </style>
+</head>
+<body class="light">
+  <div class="workspace">
+    <div class="topbar">
+      <div class="titleblock">
+        <h1>Tripwire merged single code</h1>
+        <p>One HTML file with all screens, light/dark mode, and the merge/delete flows wired in.</p>
+      </div>
+      <div class="controls">
+        <button class="chip" id="themeBtn" onclick="toggleTheme()">Toggle theme</button>
+        <div class="segmented" id="screenTabs"></div>
+      </div>
+    </div>
+
+    <div class="phone" id="phone">
+      <div class="screen active" data-screen="login">
+        <div class="nav large">
+          <div></div><div class="center"></div><div></div>
+        </div>
+        <div class="content">
+          <div class="centered" style="min-height:100%; padding-top: 6px;">
+            <div style="width:100%; max-width: 100%;">
+              <div class="icon-lg icon-muted">⌘</div>
+              <h2 class="headline">Tripwire</h2>
+              <p class="subheadline">Sign in to continue</p>
+              <div class="spacer"></div>
+              <div class="field">Username or email</div>
+              <div class="field">Password</div>
+              <div class="spacer"></div>
+              <button class="button primary" onclick="showScreen('repositories')">Log In</button>
+              <div class="spacer"></div>
+              <div class="subtle small">Don’t have an account? <span style="color:var(--blue);font-weight:600;">Sign Up</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="screen" data-screen="repositories">
+        <div class="nav large">
+          <div></div>
+          <div class="center"><div class="title-large">Repositories</div></div>
+          <div class="right">⋯</div>
+        </div>
+        <div class="content">
+          <div class="section">
+            <div class="field" style="margin-top:0;">Search repositories</div>
+          </div>
+          <div class="section">
+            <div class="list">
+              <div class="list-item" onclick="showScreen('repoHome')" style="cursor:pointer;">
+                <div class="top">
+                  <div class="stack" style="gap:2px;">
+                    <div class="name">Tripwire-iOS</div>
+                    <div class="owner">manikanta</div>
+                  </div>
+                  <div style="color:var(--tertiary); font-size:20px;">›</div>
+                </div>
+                <div class="desc">AI-powered GitHub security scanner.</div>
+                <div class="meta">
+                  <span>★ 128</span><span>main</span><span>Updated yesterday</span>
+                </div>
+              </div>
+              <div class="list-item">
+                <div class="top">
+                  <div class="stack" style="gap:2px;">
+                    <div class="name">tripwire-core-engine</div>
+                    <div class="owner">tripwire-security</div>
+                  </div>
+                  <div style="color:var(--tertiary); font-size:20px;">›</div>
+                </div>
+                <div class="desc">Core static analysis rules and vulnerability heuristics.</div>
+                <div class="meta">
+                  <span>★ 842</span><span>main</span><span>Updated 2 days ago</span>
+                </div>
+              </div>
+              <div class="list-item">
+                <div class="top">
+                  <div class="stack" style="gap:2px;">
+                    <div class="name">ruleset-definitions</div>
+                    <div class="owner">manikanta</div>
+                  </div>
+                  <div style="color:var(--tertiary); font-size:20px;">›</div>
+                </div>
+                <div class="desc">Custom detection rulesets for secret leakage and dependency tracking.</div>
+                <div class="meta">
+                  <span>★ 45</span><span>develop</span><span>Updated 4 days ago</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="screen" data-screen="repoHome">
+        <div class="nav large">
+          <div class="left" onclick="showScreen('repositories')">‹</div>
+          <div class="center"><div class="title-large" style="font-size:17px; line-height:1.2; text-align:center;">Tripwire-iOS</div></div>
+          <div class="right">⋯</div>
+        </div>
+        <div class="content">
+          <div class="section">
+            <div class="card">
+              <div style="font-size:28px; font-weight:700; letter-spacing:-.03em;">Tripwire-iOS</div>
+              <div class="subtle" style="margin-top:6px;">AI-powered GitHub security scanner.</div>
+              <div class="divider"></div>
+              <div class="meta">
+                <span>★ 128 Stars</span><span>main</span><span>Updated yesterday</span>
+              </div>
+            </div>
+          </div>
+          <div class="section">
+            <div class="subtle small semibold" style="margin-bottom:8px; color:var(--label);">Repository</div>
+            <div class="list">
+              <div class="list-item" onclick="showScreen('pullRequests')" style="cursor:pointer;">
+                <div class="top">
+                  <div class="stack" style="gap:2px;">
+                    <div class="name">Pull Requests</div>
+                    <div class="owner">Review and merge pull requests</div>
+                  </div>
+                  <div style="color:var(--tertiary); font-size:20px;">›</div>
+                </div>
+              </div>
+              <div class="list-item">
+                <div class="top">
+                  <div class="stack" style="gap:2px;">
+                    <div class="name">Issues</div>
+                    <div class="owner">View and manage repository issues</div>
+                  </div>
+                  <div style="color:var(--tertiary); font-size:20px;">›</div>
+                </div>
+              </div>
+              <div class="list-item">
+                <div class="top">
+                  <div class="stack" style="gap:2px;">
+                    <div class="name">Activity</div>
+                    <div class="owner">Recent commits and repository events</div>
+                  </div>
+                  <div style="color:var(--tertiary); font-size:20px;">›</div>
+                </div>
+              </div>
+              <div class="list-item">
+                <div class="top">
+                  <div class="stack" style="gap:2px;">
+                    <div class="name">README.md</div>
+                    <div class="owner">Open repository documentation</div>
+                  </div>
+                  <div style="color:var(--tertiary); font-size:20px;">›</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="screen-footer">Connected to GitHub</div>
+        </div>
+      </div>
+
+      <div class="screen" data-screen="pullRequests">
+        <div class="nav large">
+          <div class="left" onclick="showScreen('repoHome')">‹</div>
+          <div class="center"><div class="title-large">Pull Requests</div></div>
+          <div class="right">↻</div>
+        </div>
+        <div class="content">
+          <div class="section">
+            <div class="field" style="margin-top:0;">Search pull requests</div>
+          </div>
+          <div class="section">
+            <div class="list">
+              <div class="list-item" onclick="showScreen('prDetail')" style="cursor:pointer;">
+                <div class="top">
+                  <div class="stack" style="gap:2px;">
+                    <div class="name">Fix Authentication Bug</div>
+                    <div class="owner">manikanta</div>
+                  </div>
+                  <span class="status-pill">Open</span>
+                </div>
+                <div class="desc">Resolves login authentication timeout and session validation issues.</div>
+                <div class="meta">
+                  <span>manikanta</span><span>feature/login-fix</span><span>Opened 3 hours ago</span>
+                </div>
+              </div>
+              <div class="list-item">
+                <div class="top">
+                  <div class="stack" style="gap:2px;">
+                    <div class="name">Refactor Security Rules</div>
+                    <div class="owner">tripwire-security</div>
+                  </div>
+                  <span class="status-pill">Draft</span>
+                </div>
+                <div class="desc">Internal cleanup for rule evaluation and policy checks.</div>
+                <div class="meta">
+                  <span>tripwire-security</span><span>refactor/rules</span><span>Opened 1 day ago</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="screen" data-screen="prDetail">
+        <div class="nav inline">
+          <div class="left" onclick="showScreen('pullRequests')">‹</div>
+          <div class="center"><div class="title-inline">Fix Authentication Bug</div></div>
+          <div class="right">⋯</div>
+        </div>
+        <div class="content">
+          <div class="section">
+            <div class="card">
+              <div class="row between">
+                <div>
+                  <div style="font-size:22px;font-weight:700;letter-spacing:-.02em;">Fix Authentication Bug</div>
+                  <div class="subtle" style="margin-top:4px;">manikanta</div>
+                </div>
+                <span class="status-pill">Open</span>
+              </div>
+              <div class="divider"></div>
+              <div class="body">Resolves authentication timeout and improves session validation during login.</div>
+              <div class="divider"></div>
+              <div class="meta">
+                <span>Opened 3 hours ago</span><span>feature/login-fix</span><span>main</span>
+              </div>
+            </div>
+          </div>
+          <div class="section">
+            <div class="list">
+              <div class="list-item">
+                <div class="top"><div class="stack"><div class="name">Files Changed</div><div class="owner">27 files changed</div></div><div style="color:var(--tertiary);font-size:20px;">›</div></div>
+              </div>
+              <div class="list-item">
+                <div class="top"><div class="stack"><div class="name">Commits</div><div class="owner">8 commits</div></div><div style="color:var(--tertiary);font-size:20px;">›</div></div>
+              </div>
+              <div class="list-item">
+                <div class="top"><div class="stack"><div class="name">Reviewers</div><div class="owner">3 reviewers</div></div><div style="color:var(--tertiary);font-size:20px;">›</div></div>
+              </div>
+            </div>
+          </div>
+          <div class="section">
+            <button class="button primary" onclick="startScan()">Request Security Scan</button>
+          </div>
+          <div class="section">
+            <div class="footnote">Scanning analyzes changed files, dependencies, secrets, and security vulnerabilities.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="screen" data-screen="scanProgress">
+        <div class="nav inline">
+          <div class="left" onclick="showScreen('prDetail')">‹</div>
+          <div class="center"><div class="title-inline">Scanning</div></div>
+          <div class="right">⋯</div>
+        </div>
+        <div class="content">
+          <div class="centered inline">
+            <div style="width:100%;">
+              <div class="icon-lg icon-blue">◔</div>
+              <div class="body-17 semibold" style="text-align:center;">Scanning pull request</div>
+              <div class="subheadline" style="text-align:center;">Analyzing changed files and security signals</div>
+              <div class="progress-wrap">
+                <div class="percent" id="progressPercent">0%</div>
+                <div class="bar"><div id="progressFill"></div></div>
+                <div class="subheadline" id="progressStep">Checking secrets</div>
+                <div class="note" style="margin-top:2px;">Tripwire is analyzing the pull request locally and checking for secrets, dependency issues, and suspicious changes.</div>
+                <div class="meta" style="justify-content:center; margin-top:2px;">
+                  <span>Files checked <strong id="filesCount" style="color:var(--label);">0</strong></span>
+                  <span>Rules run <strong id="rulesCount" style="color:var(--label);">0</strong></span>
+                  <span>Time elapsed <strong id="elapsed" style="color:var(--label);">00:00</strong></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="screen" data-screen="scanReport">
+        <div class="nav inline">
+          <div class="left" onclick="showScreen('prDetail')">‹</div>
+          <div class="center"><div class="title-inline">Scan Report</div></div>
+          <div class="right">⋯</div>
+        </div>
+        <div class="content">
+          <div class="section">
+            <div class="card compact">
+              <div class="row between">
+                <div class="row" style="align-items:flex-start; gap:12px;">
+                  <div class="icon-lg icon-muted" style="width:44px;height:44px;margin:0;">✓</div>
+                  <div>
+                    <div class="strong" style="font-size:17px;">Scan Complete</div>
+                    <div class="subtle small">3 findings detected</div>
+                    <div class="subtle small" style="margin-top:2px;">Tripwire-iOS • feature/login-fix</div>
+                  </div>
+                </div>
+                <div class="percent" style="font-size:28px;">94%</div>
+              </div>
+              <div class="divider"></div>
+              <div class="subtle small">Security Health Score</div>
+              <div class="body" style="margin-top:4px;">Acceptable security posture</div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="subtle small semibold" style="margin-bottom:8px; color:var(--label);">Findings</div>
+            <div class="list">
+              <div class="list-item">
+                <div class="top">
+                  <div class="stack">
+                    <div class="name">Hardcoded secret detected</div>
+                    <div class="desc">A token-like string was found in <span style="color:var(--label);">config.swift</span>.</div>
+                  </div>
+                  <div class="subtle small" style="white-space:nowrap; color:var(--red);">Critical</div>
+                </div>
+              </div>
+              <div class="list-item">
+                <div class="top">
+                  <div class="stack">
+                    <div class="name">Dependency version requires review</div>
+                    <div class="desc">A package update should be validated before merge.</div>
+                  </div>
+                  <div class="subtle small" style="white-space:nowrap; color:var(--orange);">Warning</div>
+                </div>
+              </div>
+              <div class="list-item">
+                <div class="top">
+                  <div class="stack">
+                    <div class="name">Suspicious permission change</div>
+                    <div class="desc">One modified access rule should be checked manually.</div>
+                  </div>
+                  <div class="subtle small" style="white-space:nowrap; color:var(--blue);">Info</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="subtle small semibold" style="margin-bottom:8px; color:var(--label);">Checks</div>
+            <div class="list">
+              <div class="list-item"><div class="row between"><div class="body">Secrets scan</div><div class="subtle small">Passed</div></div></div>
+              <div class="list-item"><div class="row between"><div class="body">Dependency audit</div><div class="subtle small">Review</div></div></div>
+              <div class="list-item"><div class="row between"><div class="body">Diff analysis</div><div class="subtle small">Passed</div></div></div>
+              <div class="list-item"><div class="row between"><div class="body">Branch policy</div><div class="subtle small">Passed</div></div></div>
+              <div class="list-item"><div class="row between"><div class="body">Permission review</div><div class="subtle small">Failed</div></div></div>
+            </div>
+          </div>
+
+          <div class="section">
+            <button class="button primary" onclick="openMergeAuth()">Merge with Fingerprint</button>
+            <div style="height:10px"></div>
+            <button class="button destructive" onclick="openDeleteConfirm()">Delete</button>
+          </div>
+
+          <div class="section">
+            <div class="footnote">Tripwire scanned changed files, dependencies, secrets, and policy rules locally.</div>
+          </div>
+        </div>
+
+        <div class="overlay" id="mergeOverlay">
+          <div class="modal">
+            <div class="body">
+              <div class="icon-lg icon-blue" style="width:56px;height:56px;">⌘</div>
+              <div class="strong" style="font-size:17px;">Approve merge with Touch ID</div>
+              <div class="subtle small" style="margin-top:6px;">Authenticate to merge this pull request.</div>
+            </div>
+            <div class="actions">
+              <button onclick="closeMergeAuth()">Cancel</button>
+              <button class="danger" onclick="doMerge()">Merge</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="overlay" id="deleteOverlay">
+          <div class="modal">
+            <div class="body">
+              <div class="icon-lg icon-red" style="width:56px;height:56px;">⌫</div>
+              <div class="strong" style="font-size:17px;">Delete this pull request?</div>
+              <div class="subtle small" style="margin-top:6px;">This action cannot be undone.</div>
+            </div>
+            <div class="actions">
+              <button onclick="closeDeleteConfirm()">Cancel</button>
+              <button class="danger" onclick="doDelete()">Delete</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="screen" data-screen="mergeSuccess">
+        <div class="nav inline">
+          <div class="left" onclick="showScreen('scanReport')">‹</div>
+          <div class="center"><div class="title-inline">Merge Result</div></div>
+          <div class="right"></div>
+        </div>
+        <div class="content">
+          <div class="centered inline">
+            <div>
+              <div class="icon-lg icon-green">✓</div>
+              <h2 class="headline">Successfully Merged</h2>
+              <p class="subheadline">The pull request has been merged into main.</p>
+              <div style="height:16px"></div>
+              <div class="status-pill">Returning to repository</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="screen" data-screen="deleteDeleted">
+        <div class="nav inline">
+          <div class="left" onclick="showScreen('scanReport')">‹</div>
+          <div class="center"><div class="title-inline">Delete Result</div></div>
+          <div class="right"></div>
+        </div>
+        <div class="content">
+          <div class="centered inline">
+            <div>
+              <div class="icon-lg icon-red">🗑</div>
+              <h2 class="headline">Deleted</h2>
+              <p class="subheadline">The pull request has been removed.</p>
+              <div style="height:16px"></div>
+              <div class="status-pill">Returning to main repository</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    const screens = [
+      'login',
+      'repositories',
+      'repoHome',
+      'pullRequests',
+      'prDetail',
+      'scanProgress',
+      'scanReport',
+      'mergeSuccess',
+      'deleteDeleted'
+    ];
+
+    const tabs = {
+      login: 'Login',
+      repositories: 'Repos',
+      repoHome: 'Repo Home',
+      pullRequests: 'PRs',
+      prDetail: 'PR Detail',
+      scanProgress: 'Scan',
+      scanReport: 'Report',
+      mergeSuccess: 'Merged',
+      deleteDeleted: 'Deleted'
+    };
+
+    const screenTabs = document.getElementById('screenTabs');
+
+    function buildTabs(){
+      screenTabs.innerHTML = '';
+      screens.forEach(screen => {
+        const btn = document.createElement('button');
+        btn.className = 'seg-btn';
+        btn.textContent = tabs[screen];
+        btn.onclick = () => showScreen(screen);
+        btn.dataset.screen = screen;
+        screenTabs.appendChild(btn);
+      });
+    }
+
+    function setActiveTab(screen){
+      document.querySelectorAll('.seg-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.screen === screen);
+      });
+    }
+
+    function showScreen(screen){
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      const active = document.querySelector(`.screen[data-screen="${screen}"]`);
+      if (active) active.classList.add('active');
+      setActiveTab(screen);
+
+      // keep overlays closed when switching away
+      closeMergeAuth();
+      closeDeleteConfirm();
+
+      if (screen === 'scanProgress') startTicker();
+      if (screen === 'mergeSuccess') {
+        setTimeout(() => showScreen('repoHome'), 1300);
+      }
+      if (screen === 'deleteDeleted') {
+        setTimeout(() => showScreen('repositories'), 1300);
+      }
+    }
+
+    function toggleTheme(){
+      document.body.classList.toggle('dark');
+    }
+
+    function startScan(){
+      showScreen('scanProgress');
+      setTimeout(() => {
+        // auto continue to report for preview
+        showScreen('scanReport');
+      }, 4500);
+    }
+
+    let scanTimer = null;
+    function startTicker(){
+      if (scanTimer) clearInterval(scanTimer);
+      let p = 0;
+      let files = 0;
+      let rules = 0;
+      let elapsed = 0;
+      const steps = [
+        'Checking secrets',
+        'Reviewing dependencies',
+        'Inspecting changed files',
+        'Validating branch policy',
+        'Finalizing report'
+      ];
+      const pct = document.getElementById('progressPercent');
+      const fill = document.getElementById('progressFill');
+      const step = document.getElementById('progressStep');
+      const filesCount = document.getElementById('filesCount');
+      const rulesCount = document.getElementById('rulesCount');
+      const elapsedEl = document.getElementById('elapsed');
+
+      pct.textContent = '0%';
+      fill.style.width = '0%';
+      step.textContent = steps[0];
+      filesCount.textContent = '0';
+      rulesCount.textContent = '0';
+      elapsedEl.textContent = '00:00';
+
+      scanTimer = setInterval(() => {
+        p = Math.min(100, p + (p < 60 ? 5 : p < 85 ? 4 : 2));
+        files = Math.min(27, files + (p < 90 ? 2 : 1));
+        rules = Math.min(84, rules + (p < 70 ? 6 : p < 90 ? 4 : 2));
+        elapsed += 1;
+        const s = String(Math.floor(elapsed/60)).padStart(2,'0') + ':' + String(elapsed%60).padStart(2,'0');
+        pct.textContent = `${p}%`;
+        fill.style.width = `${p}%`;
+        step.textContent = steps[Math.min(steps.length - 1, Math.floor((p/100)*steps.length))];
+        filesCount.textContent = files;
+        rulesCount.textContent = rules;
+        elapsedEl.textContent = s;
+        if (p >= 100) {
+          clearInterval(scanTimer);
+          scanTimer = null;
+        }
+      }, 170);
+    }
+
+    function openMergeAuth(){ document.getElementById('mergeOverlay').classList.add('show'); }
+    function closeMergeAuth(){ document.getElementById('mergeOverlay').classList.remove('show'); }
+    function doMerge(){
+      closeMergeAuth();
+      showScreen('mergeSuccess');
+    }
+
+    function openDeleteConfirm(){ document.getElementById('deleteOverlay').classList.add('show'); }
+    function closeDeleteConfirm(){ document.getElementById('deleteOverlay').classList.remove('show'); }
+    function doDelete(){
+      closeDeleteConfirm();
+      showScreen('deleteDeleted');
+    }
+
+    buildTabs();
+    showScreen('login');
+  </script>
+</body>
+</html>
