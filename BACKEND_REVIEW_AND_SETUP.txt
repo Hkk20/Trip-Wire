@@ -1,0 +1,196 @@
+TRIPWIRE BACKEND REVIEW — BEFORE / AFTER
+=========================================
+
+The short honest version
+------------------------
+The idea is strong: Tripwire should be the approval-time trust layer, not another
+"we find every bug" scanner. Before this pass, the backend was a starter sketch.
+After this pass, it is a small, working demo engine for one real thing: fetching a
+GitHub pull-request diff and returning a privacy-conscious, high-confidence secret
+scan to the existing frontend.
+
+FILE-BY-FILE CHANGE INVENTORY
+=============================
+
+New files created
+-----------------
+- Backend/tsconfig.json
+  Strict TypeScript configuration for compiling src/ into dist/.
+
+- Backend/.env.example
+  The safe configuration template now lives beside the backend package, where the
+  application loads Backend/.env in both development and compiled builds.
+
+- Backend/src/config.ts
+  One place for environment loading and configuration: port, environment, session
+  secret, GitHub/OpenAI credentials, trusted frontend origins, and reverse-proxy
+  setting. Production refuses to start without SESSION_SECRET.
+
+- Backend/src/errors.ts
+  Typed application errors plus one consistent JSON error handler and 404 handler.
+
+- Backend/src/middleware/security.middleware.ts
+  Same-origin/CSRF protection for state-changing requests and a small in-memory
+  rate limiter for the demo API.
+
+- Backend/src/services/secret-scan.service.ts
+  Local high-confidence secret scanner for newly added diff lines. It detects common
+  GitHub, OpenAI, AWS, private-key and credential-assignment patterns and redacts
+  match previews before returning them.
+
+- BACKEND_REVIEW_AND_SETUP.txt (this file)
+  Before/after review, required setup, honest scope boundaries, and this inventory.
+
+Files changed
+-------------
+- Backend/src/index.ts
+  Replaced the minimal server bootstrapping with the hardened application setup:
+  Helmet/CSP, bounded JSON parsers, conservative CORS, secure sessions, API router,
+  static serving of Frontend/, and centralized error handling.
+
+- Backend/src/routes/api.routes.ts
+  Was empty. Now registers health, session, development demo-login/logout, and
+  authenticated POST /api/v1/reviews/analyze endpoints.
+
+- Backend/src/controllers/auth.controller.ts
+  Was empty. Now creates a development-only session, rotates the session ID at
+  login, returns current session state, and destroys sessions on logout.
+
+- Backend/src/controllers/review.controller.ts
+  Replaced loose request handling with owner/repository/PR validation, server-only
+  GitHub token use, deterministic scanning, optional LLM explanation, a SHA-256
+  diff hash, and safe response data.
+
+- Backend/src/services/github.service.ts
+  Replaced the unbounded GitHub request with a timeout, size limits, GitHub API
+  version header, Bearer authentication, and mapped safe failure responses.
+
+- Backend/src/services/llm.service.ts
+  Fixed the model configuration and changed the LLM flow so it receives redacted
+  finding metadata rather than the raw source diff. OpenAI is now optional.
+
+- Backend/src/middleware/auth.middleware.ts
+  Fixed the authorization control-flow bug that could call next() and still send a
+  401 response. It now exits correctly through the shared error handler.
+
+- Backend/src/types/express.d.ts
+  Made session user data optional, matching an anonymous request safely.
+
+- Backend/package.json
+  Replaced the placeholder package manifest with backend scripts and explicit
+  runtime/development dependencies.
+
+- package.json, pnpm-workspace.yaml, pnpm-lock.yaml
+  Converted the repository into a small pnpm workspace. Root commands delegate to
+  @tripwire/backend; the lockfile was regenerated from those manifests.
+
+- Frontend/index.html
+  Preserved the visual design while wiring Login and Request Security Scan to the
+  API. Live scan data safely populates the report and finding list. The configured
+  PR target is intentionally a visible non-secret constant near the bottom.
+
+File moved
+----------
+- Backend/src/.env.example -> Backend/.env.example
+  This avoids placing runtime environment configuration under source code and makes
+  Backend/.env the predictable local configuration location.
+
+BEFORE (what was present)
+-------------------------
+- Express, Helmet, CORS, cookie-parser and express-session were added in index.ts.
+  This was a useful start, but CORS accepted every origin with credentials, the
+  session secret had a fallback, and the default in-memory session store was implicit.
+- api.routes.ts and auth.controller.ts were empty, so no API route was actually
+  registered and the frontend was entirely simulated.
+- The authorization middleware called next() and then always tried to send 401.
+- The review controller accepted loosely checked input, mixed GITHUB_PAT with a
+  session token, and returned raw internal error messages.
+- GitHub requests had no bounded input validation or clear GitHub error mapping.
+- The LLM model name was misspelled ("gtp-4o-mini"), JSON was trusted without
+  validation, and the entire raw diff (possibly containing a secret) would have
+  been sent to the LLM.
+- The frontend was a high-quality visual prototype, but Login, Scan, Merge and
+  Delete only changed screens; none called a backend.
+- The original src/.env.example contained secret-looking example values. Treat
+  those values as exposed: rotate them immediately if they were ever used anywhere.
+
+AFTER (what is now wired and tightened)
+----------------------------------------
+- A pnpm workspace now contains a real @tripwire/backend package, TypeScript config,
+  reproducible lockfile, and build/typecheck scripts.
+- The server serves the designer's Frontend itself at http://localhost:8080. That
+  keeps integration credentials out of JavaScript and removes the need for loose CORS.
+- API endpoints are live:
+    GET    /api/v1/health
+    GET    /api/v1/auth/session
+    POST   /api/v1/auth/demo-login       (development only)
+    DELETE /api/v1/auth/session
+    POST   /api/v1/reviews/analyze
+- The UI's Login and Request Security Scan buttons now call those endpoints. The
+  scan response dynamically replaces the report card and finding list.
+- The GitHub token lives only in Backend/.env. Request fields are validated,
+  GitHub calls have time/content limits, diff size is capped, and operational
+  errors are safe and useful without leaking tokens or stack traces.
+- The deterministic scanner checks newly added diff lines for GitHub/OpenAI/AWS
+  tokens, private-key markers, and obvious credential assignments. Findings redact
+  the matching value. A SHA-256 diff hash is returned for later attestation work.
+- OpenAI is optional. If configured, the service sends only redacted finding metadata
+  (not the source diff) to obtain a plain-English explanation. If it is not
+  configured or fails, the secret scan still works.
+- Security additions: explicit trusted CORS origins, HTTP-only signed cookies,
+  secure production cookie name/settings, same-origin checks for mutating requests,
+  request-size limits, API rate limiting, safe error handling, CSP/Helmet headers,
+  no X-Powered-By header, and session-ID rotation at demo login.
+
+WHAT YOU NEED TO ADD / INSTALL
+------------------------------
+1) Node.js 20+ (Node 24 was used here) and pnpm 12.3.4.
+   If pnpm is not globally available on Windows:
+     corepack enable
+     corepack pnpm install
+
+2) Create your real local environment file. Do NOT commit it:
+     Copy-Item Backend/.env.example Backend/.env
+   Generate a new SESSION_SECRET (at least 32 random bytes). Do not reuse the old
+   values that were in the repository.
+
+3) Add GITHUB_TOKEN. This is a GitHub fine-grained personal access token (PAT),
+   not an API key. Limit it to only the demo repository, add a short expiration,
+   and start with repository permissions Pull requests: Read and Contents: Read.
+   GitHub documents choosing only selected repositories and the minimum permission
+   set; its response header can tell you the exact accepted permissions if GitHub
+   rejects a request. Do not add write permission for this scan-only milestone.
+
+4) Change pullRequestTarget near the bottom of Frontend/index.html:
+     owner: 'YOUR_GITHUB_OWNER'
+     repo: 'YOUR_GITHUB_REPOSITORY'
+     prNumber: 1
+   Use a real open PR number. This is deliberately visible configuration, not a
+   secret. The token never belongs in this HTML file.
+
+5) OPENAI_API_KEY is optional. Add it only if you want AI-written explanations.
+   The core detection works without it. Keep the key only in Backend/.env.
+
+RUNNING IT
+----------
+  corepack pnpm dev
+  Open http://localhost:8080
+
+  corepack pnpm typecheck
+  corepack pnpm build
+
+IMPORTANT NEXT MILESTONE (not claimed as finished)
+---------------------------------------------------
+This is a web demo, so its Touch ID/Fingerprint merge screen is visual only. A web
+modal cannot create biometric evidence. Likewise, merge/delete are intentionally
+not connected to GitHub: write authority must not be added casually. For the real
+Tripwire promise, build the Android client with BiometricPrompt and local Room
+attestation storage, then use a GitHub App/OAuth flow with narrowly scoped per-user
+permissions. Before production, replace the development demo login and Express
+MemoryStore with real auth plus a persistent session store (Redis/database), add an
+attestation database, tests, audit-log integrity controls, abuse monitoring, and
+mobile push delivery.
+
+References used for the GitHub token setup:
+https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens
+https://docs.github.com/en/rest/using-the-rest-api/troubleshooting-the-rest-api

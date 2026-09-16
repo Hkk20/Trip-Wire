@@ -1,44 +1,32 @@
-import express, { Application, Request, Response } from 'express';
-import session from 'express-session';
-import cookieParser from 'cookie-parser';
-import helmet from 'helmet';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import cors from 'cors';
-import dotenv from 'dotenv';
+import express from 'express';
+import session from 'express-session';
+import helmet from 'helmet';
+import { config } from './config.js';
+import { errorHandler, notFound } from './errors.js';
+import { apiRouter } from './routes/api.routes.js';
 
-
-dotenv.config();
-const app: Application = express();
-const PORT = process.env.PORT || 8080;
-app.use(helmet());
-app.use(cors({
-    origin:true,
-    credentials:true
-}));
-app.use(express.json());
-app.use(cookieParser(process.env.COOKIE_SECRET));
-app.use(express.urlencoded({extended:true}));
+const app = express();
+const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
+const frontendDirectory = path.resolve(currentDirectory, '../../Frontend');
+app.disable('x-powered-by');
+app.set('trust proxy', config.trustProxy);
+app.use(helmet({ contentSecurityPolicy: { directives: {
+  defaultSrc: ["'self'"], scriptSrc: ["'self'", "'unsafe-inline'"], styleSrc: ["'self'", "'unsafe-inline'"],
+  imgSrc: ["'self'", 'data:'], connectSrc: ["'self'"],
+} }, crossOriginResourcePolicy: { policy: 'same-origin' }, referrerPolicy: { policy: 'no-referrer' } }));
+app.use(cors({ origin: config.frontendOrigins.length ? config.frontendOrigins : false, credentials: true, methods: ['GET', 'POST', 'DELETE'], maxAge: 600 }));
+app.use(express.json({ limit: '32kb', type: 'application/json' }));
+app.use(express.urlencoded({ extended: false, limit: '8kb' }));
 app.use(session({
-    secret: process.env.SESSION_SECRET || 'session-fallback',
-    resave: false,
-    saveUninitialized: false,
-    cookie:{
-        httpOnly:true,
-        secure:process.env.NODE_ENV === 'production',
-        maxAge: 1000 * 60 * 60 * 24,
-        sameSite:'lax',
-    },
-
+  name: config.isProduction ? '__Host-tripwire.sid' : 'tripwire.sid', secret: config.sessionSecret,
+  resave: false, saveUninitialized: false,
+  cookie: { httpOnly: true, secure: config.isProduction, sameSite: 'lax', maxAge: 60 * 60 * 1000, path: '/' },
 }));
-app.get('/health',(req: Request, res: Response)=>{
-    res.status(200).json({
-        sucess: true,
-        status:' online',
-        message:'serveris running cool'
-
-
-    }); 
-});
-app.listen(PORT,() =>{
-    console.log('finally your so called hand written code is working fine better not mess up the future');
-    console.log(`check the fucking port ${PORT}for the number`);
-});
+app.use('/api/v1', apiRouter);
+app.use(express.static(frontendDirectory, { index: 'index.html', maxAge: config.isProduction ? '1h' : 0, etag: true }));
+app.use(notFound);
+app.use(errorHandler);
+app.listen(config.port, () => console.info(`Tripwire API and frontend available at http://localhost:${config.port}`));

@@ -1,3 +1,6 @@
+packages:
+  - Backend
+
 allowBuilds:
   esbuild: false
   inotify: set this to true or false

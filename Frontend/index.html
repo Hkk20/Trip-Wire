@@ -510,10 +510,10 @@
               <h2 class="headline">Tripwire</h2>
               <p class="subheadline">Sign in to continue</p>
               <div class="spacer"></div>
-              <div class="field">Username or email</div>
-              <div class="field">Password</div>
+              <input id="demoUsername" class="field" type="text" maxlength="64" autocomplete="username" placeholder="Demo display name" value="demo-reviewer" />
               <div class="spacer"></div>
-              <button class="button primary" onclick="showScreen('repositories')">Log In</button>
+              <button class="button primary" onclick="login()">Log In</button>
+              <div id="loginError" class="subtle small" role="alert" style="margin-top:10px;color:var(--red);"></div>
               <div class="spacer"></div>
               <div class="subtle small">Don’t have an account? <span style="color:var(--blue);font-weight:600;">Sign Up</span></div>
             </div>
@@ -770,21 +770,21 @@
                   <div class="icon-lg icon-muted" style="width:44px;height:44px;margin:0;">✓</div>
                   <div>
                     <div class="strong" style="font-size:17px;">Scan Complete</div>
-                    <div class="subtle small">3 findings detected</div>
+                    <div class="subtle small" id="scanFindingCount">Waiting for a live scan</div>
                     <div class="subtle small" style="margin-top:2px;">Tripwire-iOS • feature/login-fix</div>
                   </div>
                 </div>
-                <div class="percent" style="font-size:28px;">94%</div>
+                <div class="percent" id="scanScore" style="font-size:28px;">—</div>
               </div>
               <div class="divider"></div>
               <div class="subtle small">Security Health Score</div>
-              <div class="body" style="margin-top:4px;">Acceptable security posture</div>
+              <div class="body" id="scanSummary" style="margin-top:4px;">Run a scan to see live results</div>
             </div>
           </div>
 
           <div class="section">
             <div class="subtle small semibold" style="margin-bottom:8px; color:var(--label);">Findings</div>
-            <div class="list">
+            <div class="list" id="scanFindings">
               <div class="list-item">
                 <div class="top">
                   <div class="stack">
@@ -933,6 +933,8 @@
     };
 
     const screenTabs = document.getElementById('screenTabs');
+    // Replace these three values with the GitHub PR you want to review for the demo.
+    const pullRequestTarget = { owner: 'YOUR_GITHUB_OWNER', repo: 'YOUR_GITHUB_REPOSITORY', prNumber: 1 };
 
     function buildTabs(){
       screenTabs.innerHTML = '';
@@ -975,12 +977,55 @@
       document.body.classList.toggle('dark');
     }
 
-    function startScan(){
+    async function login(){
+      const error = document.getElementById('loginError');
+      error.textContent = '';
+      try {
+        const response = await fetch('/api/v1/auth/demo-login', {
+          method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: document.getElementById('demoUsername').value })
+        });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.message || 'Could not sign in.');
+        showScreen('repositories');
+      } catch (requestError) { error.textContent = requestError.message || 'Could not sign in.'; }
+    }
+
+    function renderScan(data){
+      const findings = data.findings || [];
+      const findingList = document.getElementById('scanFindings');
+      const riskColor = data.riskLevel === 'HIGH' ? 'var(--red)' : 'var(--green)';
+      document.getElementById('scanFindingCount').textContent = `${findings.length} high-confidence finding${findings.length === 1 ? '' : 's'} detected`;
+      document.getElementById('scanScore').textContent = data.riskLevel;
+      document.getElementById('scanScore').style.color = riskColor;
+      document.getElementById('scanSummary').textContent = data.explanation;
+      findingList.replaceChildren();
+      if (!findings.length) {
+        const item = document.createElement('div'); item.className = 'list-item'; item.textContent = 'No high-confidence secret patterns were found in newly added lines.'; findingList.appendChild(item);
+      }
+      findings.forEach(finding => {
+        const item = document.createElement('div'); item.className = 'list-item';
+        const title = document.createElement('div'); title.className = 'name'; title.textContent = finding.title;
+        const detail = document.createElement('div'); detail.className = 'desc'; detail.textContent = `${finding.location} · ${finding.preview}`;
+        const severity = document.createElement('div'); severity.className = 'subtle small'; severity.style.color = riskColor; severity.textContent = finding.severity;
+        item.append(title, detail, severity); findingList.appendChild(item);
+      });
+    }
+
+    async function startScan(){
       showScreen('scanProgress');
-      setTimeout(() => {
-        // auto continue to report for preview
+      try {
+        const response = await fetch('/api/v1/reviews/analyze', {
+          method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(pullRequestTarget)
+        });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.message || 'The scan could not be completed.');
+        renderScan(payload.data);
         showScreen('scanReport');
-      }, 4500);
+      } catch (requestError) {
+        renderScan({ riskLevel: 'LOW', findings: [], explanation: requestError.message || 'The scan could not be completed.' });
+        showScreen('scanReport');
+      }
     }
 
     let scanTimer = null;
